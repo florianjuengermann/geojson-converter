@@ -60,4 +60,4 @@ Das cp** steht für die Python version. Also cp36 für Python 3.6 usw.
 
 
 ### Guter .geojson viewer:
-	geojsonviewer.nsspot.net
+http://geojsonviewer.nsspot.net
