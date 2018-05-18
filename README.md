@@ -40,7 +40,7 @@ Zu installieren mit:
 # TROUBLESHOOTING:
 	
 Zur Installation von pyproj wird unter Windows Visual C++14 benötigt. Dies
-lässt sich umgehen indem man eine Windows Binary runterläd und diese direkt
+lässt sich umgehen indem man eine Windows Binary runterlädt und diese direkt
 installiert.
 
 Quelle: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyproj
