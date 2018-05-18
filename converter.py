@@ -3,8 +3,9 @@ import shapefile
 from pyproj import Proj, transform
 
 if len(sys.argv) == 1:
-	print("No input file provided. Usage:\n python converter.py <inputFile> <outputFile> [projection EPSG code]")
+	print("No input file provided. Usage:\n python converter.py <inputFile> <outputFile> [projection EPSG code] [encoding]")
 	print("You can use 'file.shp' or just 'file' the converter will read the .shp .dbf files and so on.")
+	print("Default EPSG code is 4326 (no conversion). Default encoding is cp437.")
 	exit()
 inFile = sys.argv[1].replace(".shp", "").replace(".dbf", "")
 
@@ -14,15 +15,23 @@ if len(sys.argv) == 2:
 else:
 	outFileS = sys.argv[2]
 
-if len(sys.argv) == 4:
-	proj = int(sys.argv[3])
-else:
+if len(sys.argv) <= 3:
 	proj = 4326 # Word reference frame WGS84
+else:
+	proj = int(sys.argv[3])
+
+if len(sys.argv) <= 4:
+	ENCODING = "cp437"#"utf-8"
+else:
+	ENCODING = sys.argv[4]
 
 
-print("Using projection: EPSG:", proj)
 
-sf = shapefile.Reader(inFile, encoding="utf-8")#windows -1252 encoding iso 8859-1
+print("Using projection: EPSG:"+ str(proj))
+print("Using encoding:", ENCODING)
+
+
+sf = shapefile.Reader(inFile, encoding=ENCODING)
 outFile = open(outFileS, "w+")
 
 shapes = sf.shapes()
@@ -43,10 +52,11 @@ outFile.write("{\n\"type\": \"FeatureCollection\",\n\"crs\": { \"type\": \"name\
 outFile.write(" { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" } },\n\"features\": [\n")
 
 
-shapesCount = len(sf.shapeRecords())
+#shapesCount = len(sf.shapeRecords())
+shapesCount = 1
 
 for s in range(shapesCount):
-	feature = sf.shapeRecords()[s]
+	feature = sf.shapeRecords()[1]
 	print("Reading shape " + str(s+1) + " / " +str(shapesCount))
 	rec = feature.record
 	shape = feature.shape
@@ -62,7 +72,10 @@ for s in range(shapesCount):
 			
 			#handeling umlaute
 			if isinstance(rec[i], bytes):
-				rec[i] = rec[i].decode("utf-8", "replace").replace("\ufffd", "?")
+				rec[i] = rec[i].decode(ENCODING, "replace")
+				if "\ufffd" in rec[i]:
+					rec[i] = rec[i].replace("\ufffd", "?")
+					print("Unkown character in string '"+ str(rec[i])+"'. Try using a different encoding.")
 
 			if not isinstance(rec[i], (int, float, complex)):
 				outFile.write("\"" + str(rec[i]) + "\"")
