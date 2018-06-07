@@ -55,6 +55,44 @@ outFile.write(" { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" } },\n\"features\"
 shapesCount = len(sf.shapeRecords())
 #shapesCount = 1
 
+#Print featurs from first object
+
+feature = sf.shapeRecords()[0]
+rec = feature.record
+
+# ---------- PARAMS ------------------
+if len(rec) != len(field_names):
+	print("ERROR: mismatch in feature lenghts for shape", str(feature.record))
+else:
+	outFile.write("{ \"type\": \"Feature\", \"properties\": { ")
+	#print(type(rec[5]))
+	for i in range(len(rec)):
+		outFile.write("\"" + field_names[i] + "\": ")
+		
+		#handeling umlaute
+		if isinstance(rec[i], bytes):
+			rec[i] = rec[i].decode(ENCODING, "replace")
+			if "\ufffd" in rec[i]:
+				rec[i] = rec[i].replace("\ufffd", "?")
+				print("Unkown character in string '"+ str(rec[i])+"'. Try using a different encoding.")
+
+		if not isinstance(rec[i], (int, float, complex)):
+			outFile.write("\"" + str(rec[i]) + "\"")
+		else:
+			outFile.write(str(rec[i]))
+
+		if i != len(rec) - 1:
+			outFile.write(", ")
+
+
+outFile.write(" }, \"geometry\": { \"type\": \"Polygon\", \"coordinates\": [ ")
+
+# NOT CHECK FOR PARTS, can be used to convert a array of line segments to a polygon
+
+outFile.write("[ ")
+
+startX, startY = transform(inProj,outProj,sf.shapeRecords()[0].shape.points[0][0], sf.shapeRecords()[0].shape.points[0][1])
+shapesCount = 8 #TODO rm
 for s in range(shapesCount):
 	feature = sf.shapeRecords()[s]
 	print("Reading shape " + str(s+1) + " / " +str(shapesCount))
@@ -65,67 +103,32 @@ for s in range(shapesCount):
 	if len(rec) != len(field_names):
 		print("ERROR: mismatch in feature lenghts for shape", str(feature.record))
 	else:
-		outFile.write("{ \"type\": \"Feature\", \"properties\": { ")
-		#print(type(rec[5]))
-		for i in range(len(rec)):
-			outFile.write("\"" + field_names[i] + "\": ")
-			
-			#handeling umlaute
-			if isinstance(rec[i], bytes):
-				rec[i] = rec[i].decode(ENCODING, "replace")
-				if "\ufffd" in rec[i]:
-					rec[i] = rec[i].replace("\ufffd", "?")
-					print("Unkown character in string '"+ str(rec[i])+"'. Try using a different encoding.")
-
-			if not isinstance(rec[i], (int, float, complex)):
-				outFile.write("\"" + str(rec[i]) + "\"")
-			else:
-				outFile.write(str(rec[i]))
-
-			if i != len(rec) - 1:
-				outFile.write(", ")
-
-	
+		#Only print geometry
 	# ------------ GEOMETRY ----------------
 
-		outFile.write(" }, \"geometry\": { \"type\": \"Polygon\", \"coordinates\": [ ")
+		
+		startIndex = 0
+		
+		endIndex = len(shape.points)
+		
+		
 
-		# iterate over every part of the shape
-		for p in range(len(shape.parts)):
+		# add all points for this part
+		for i in range(startIndex, endIndex):
+			coords = shape.points[i]
+			x,y = transform(inProj,outProj,coords[0],coords[1])
+			outFile.write("[ " + str(x) + ", " + str(y) + " ]")
 
-			outFile.write("[ ")
-			startIndex = shape.parts[p]
-			if p == len(shape.parts)-1:
-				endIndex = len(shape.points)
-			else:
-				endIndex = shape.parts[p+1]
-			
-			startX, startY = transform(inProj,outProj,shape.points[startIndex][0], shape.points[startIndex][1])
+			if (i != endIndex - 1) or (s != shapesCount-1):
+				outFile.write(", ")
+endIndex = len(sf.shapeRecords()[shapesCount-1].shape.points)
+lastX, lastY = transform(inProj,outProj,sf.shapeRecords()[shapesCount-1].shape.points[endIndex-1][0], sf.shapeRecords()[shapesCount-1].shape.points[endIndex-1][1])	
+if lastX != startX or lastY != startY:
+	print("ERROR: shape start and endpoint does not match! Inserting point...")
+	outFile.write(", [ " + str(startX) + ", " + str(startY) + " ]")
 
-			# add all points for this part
-			for i in range(startIndex, endIndex):
-				coords = shape.points[i]
-				x,y = transform(inProj,outProj,coords[0],coords[1])
-				outFile.write("[ " + str(x) + ", " + str(y) + " ]")
-
-				if i != endIndex - 1:
-					outFile.write(", ")
-
-			# check if polygon is closed
-			lastX, lastY = transform(inProj,outProj,shape.points[endIndex-1][0], shape.points[endIndex-1][1])
-			if lastX != startX or lastY != startY:
-				print("ERROR: shape start and endpoint does not match! Inserting point...")
-				outFile.write(", [ " + str(startX) + ", " + str(startY) + " ]")
-
-			outFile.write(" ]")
-			if p != len(shape.parts) - 1:
-				outFile.write(",\n")
-
-		outFile.write(" ] } }")
-
-		if s != shapesCount - 1:
-			outFile.write(",\n")
-
+outFile.write(" ]")
+outFile.write(" ] } }")
 
 outFile.write("\n]\n}")
 outFile.close()
